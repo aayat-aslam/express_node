@@ -1,0 +1,16 @@
+{
+  "name": "node_express_backend",
+  "version": "1.0.0",
+  "description": "backend using node, express and mongo",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "javascript",
+    "mongo",
+    "backend"
+  ],
+  "author": "Aslam Ansari",
+  "license": "ISC"
+}
