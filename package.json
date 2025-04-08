@@ -2,6 +2,7 @@
   "name": "node_express_backend",
   "version": "1.0.0",
   "description": "backend using node, express and mongo",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -12,5 +13,8 @@
     "backend"
   ],
   "author": "Aslam Ansari",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  }
 }
