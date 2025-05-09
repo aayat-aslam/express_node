@@ -9,11 +9,38 @@ import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { validateRegistrationInput } from "../validations/user.validate.js";
 
+// Function to generate a new access token and refresh token for a user
+const generateAccessAndRefreshToken = async (userId) => {
+    try {
+        // 1. Fetch the user from the database using the provided user ID
+        const user = await User.findById(userId);
+
+        // 2. Generate a new access token for short-term authentication
+        const accessToken = user.generateAccessToken();
+
+        // 3. Generate a new refresh token for renewing the access token without re-authenticating
+        const refreshToken = user.generateRefreshToken();
+
+        // 4. Save the newly generated refresh token in the user's record in the database
+        //    This allows the server to validate future refresh requests
+        user.refreshToken = refreshToken;
+
+        // 5. Save the user document but skip all Mongoose validations for performance
+        await user.save({ validateBeforeSave: false });
+
+        // 6. Return both tokens so they can be sent back to the client
+        return { accessToken, refreshToken };
+
+    } catch (error) {
+        // If an error occurs at any point (DB issues, token generation failure), throw a custom API error
+        throw new ApiError(500, "Something went wrong while generating refresh and access token");
+    }
+};
+
 // Define the registerUser controller function
 // It's wrapped in asyncHandler to ensure any asynchronous errors are caught
 // and forwarded to the error-handling middleware.
 
-// TO DO
 const registerUser = asyncHandler( async ( req, res, next) => {
 
     // get user details from frontend
@@ -121,5 +148,103 @@ const registerUser = asyncHandler( async ( req, res, next) => {
     )
 });
 
+// Controller function to handle user login
+const loginUser = asyncHandler(async (req, res) => {
+
+    // req.body -> data
+    // username or email
+    // find the user
+    // password check
+    // generate access and refresh token
+    // send cookie
+
+    // Extracting login credentials from the request body
+    const { email, username, password } = req.body;
+
+    // Ensure that either email or username is provided
+    if (!email && !username) {
+        throw new ApiError(400, "username or email is required");
+    }
+
+    // Find user by either email or username using MongoDB's $or query
+    const user = await User.findOne({
+        $or: [{ username }, { email }]
+    });
+
+    // If no user is found, return a 404 error
+    if (!user) {
+        throw new ApiError(404, "User does not exist");
+    }
+
+    // Validate the entered password with the stored hashed password
+    const isPasswordValid = await user.isPasswordCorrect(password);
+
+    // If password is invalid, return a 401 Unauthorized error
+    if (!isPasswordValid) {
+        throw new ApiError(401, "Invalid user credentials");
+    }
+
+    // Generate access and refresh tokens for the authenticated user
+    const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
+
+    // Retrieve the user again, excluding sensitive fields like password and refreshToken
+    const loggedInUser = await User.findById(user._id).select("-password -refreshToken");
+
+    // Cookie options to enhance security
+    const options = {
+        httpOnly: true, // Prevents client-side JavaScript from accessing the cookie
+        secure: true    // Ensures the cookie is sent over HTTPS only (production best practice)
+    };
+
+    // Send the access and refresh tokens in secure HTTP-only cookies and user info in response
+    return res
+        .status(200)
+        .cookie("accessToken", accessToken, options)
+        .cookie("refreshToken", refreshToken, options)
+        .json(
+            new ApiResponse(
+                200,
+                {
+                    user: loggedInUser, // sanitized user object
+                    accessToken,
+                    refreshToken
+                },
+                "User logged in successfully"
+            )
+        );
+});
+
+// Controller to handle user logout logic
+const logoutUser = asyncHandler(async (req, res) => {
+    // Clear the user's refreshToken in the database
+    // This ensures the refresh token is invalidated and can't be reused
+    await User.findByIdAndUpdate(
+        req.user._id, // Identify the user based on the authenticated request
+        {
+            $set: {
+                refreshToken: undefined  // Remove/clear the refreshToken field
+            }
+        },
+        {
+            new: true // Return the modified document (optional in this case since we're not using it)
+        }
+    );
+
+    // Cookie options to enhance security
+    const options = {
+        httpOnly: true, // Makes the cookie inaccessible to JavaScript running in the browser (mitigates XSS attacks)
+        secure: true    // Ensures the cookie is only sent over HTTPS (important in production)
+    };
+
+    // Clear the access and refresh tokens from cookies and respond to the client
+    return res
+        .status(200)
+        .clearCookie("accessToken", options)  // Clear the accessToken cookie
+        .clearCookie("refreshToken", options) // Clear the refreshToken cookie
+        .json(
+            new ApiResponse(200, {}, "User Logged Out")  // Send success response with message
+        );
+});
+
 // Export the registerUser function so it can be used in route definitions
-export { registerUser };
+export { registerUser, loginUser, logoutUser };

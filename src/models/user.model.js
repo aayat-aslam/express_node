@@ -100,7 +100,7 @@ userSchema.pre("save", async function (next) {
 
 // Define a custom instance method(i.e isPasswordCorrect) on the user schema
 // This method will be available on all User model instances
-userSchema.method.isPasswordCorrect = async function(password) {
+userSchema.methods.isPasswordCorrect = async function(password) {
     /**
      * This method compares a plain text password with the hashed password stored in the database.
      *
