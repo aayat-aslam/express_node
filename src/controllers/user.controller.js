@@ -8,6 +8,7 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { validateRegistrationInput } from "../validations/user.validate.js";
+import jwt from "jsonwebtoken";
 
 // Function to generate a new access token and refresh token for a user
 const generateAccessAndRefreshToken = async (userId) => {
@@ -149,7 +150,7 @@ const registerUser = asyncHandler( async ( req, res, next) => {
 });
 
 // Controller function to handle user login
-const loginUser = asyncHandler(async (req, res) => {
+const loginUser = asyncHandler( async (req, res) => {
 
     // req.body -> data
     // username or email
@@ -215,7 +216,7 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 // Controller to handle user logout logic
-const logoutUser = asyncHandler(async (req, res) => {
+const logoutUser = asyncHandler( async (req, res) => {
     // Clear the user's refreshToken in the database
     // This ensures the refresh token is invalidated and can't be reused
     await User.findByIdAndUpdate(
@@ -246,5 +247,66 @@ const logoutUser = asyncHandler(async (req, res) => {
         );
 });
 
+// Controller to refresh access token using a valid refresh token
+const refreshAccessToken = asyncHandler(async (req, res) => {
+    
+    // Get refresh token from either cookies or request body
+    // This is useful for flexibility across browser-based and API clients
+    const incommingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+
+    // If no refresh token is provided, the request is unauthorized
+    if (!incommingRefreshToken) {
+        throw new ApiError(401, "Unauthorized request");
+    }
+
+    try {
+        // Verify the refresh token using the server's secret
+        // This step decodes the token payload (typically includes the user ID)
+        const decodedToken = jwt.verify(incommingRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+
+        // Find the user in the database based on the decoded user ID from the refresh token
+        const user = await User.findById(decodedToken?._id);
+
+        // If the user is not found, the refresh token is invalid
+        if (!user) {
+            throw new ApiError(401, "Invalid Refresh Token");
+        }
+
+        // Compare the token received from the client with the token stored in the database
+        // If they do not match, the token may be reused or expired (invalid session)
+        if (incommingRefreshToken !== user.refreshToken) {
+            throw new ApiError(401, "Refresh token is expired or used");
+        }
+
+        // Cookie security options
+        const options = {
+            httpOnly: true, // Prevents JavaScript access to cookies (helps mitigate XSS attacks)
+            secure: true    // Sends cookies only over HTTPS (recommended for production)
+        };
+
+        // Generate a new access token and a new refresh token
+        const { accessToken, newRefreshToken } = await generateAccessAndRefreshToken(user._id);
+
+        // Send the new tokens back as HTTP-only cookies and in the response body
+        return res
+            .status(200)
+            .cookie("accessToken", accessToken, options)         // Set new access token in cookie
+            .cookie("refreshToken", newRefreshToken, options)   // Set new refresh token in cookie
+            .json(
+                new ApiResponse(
+                    200,
+                    {
+                        accessToken,
+                        refreshToken: newRefreshToken
+                    },
+                    "AccessToken Refreshed"
+                )
+            );
+    } catch (error) {
+        // Catch all token verification or DB errors and throw an appropriate response
+        throw new ApiError(401, error?.message || "Invalid refresh token");
+    }
+});
+
 // Export the registerUser function so it can be used in route definitions
-export { registerUser, loginUser, logoutUser };
+export { registerUser, loginUser, logoutUser, refreshAccessToken };

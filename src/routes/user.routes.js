@@ -8,7 +8,7 @@ import { upload } from "../middlewares/multer.middleware.js"
 
 // Importing the registerUser controller function
 // This function will handle the logic for user registration
-import { registerUser, loginUser, logoutUser } from "../controllers/user.controller.js";
+import { registerUser, loginUser, logoutUser, refreshAccessToken } from "../controllers/user.controller.js";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
 
 // Creating a new router instance for handling user-related routes
@@ -36,6 +36,7 @@ userRouter.route("/register").post(
 userRouter.route("/login").post(loginUser);
 
 userRouter.route("/logout").post( verifyJwt, logoutUser)
+userRouter.route("/refresh-token").post(refreshAccessToken)
 
 // Exporting the userRouter so it can be used in other parts of the application,
 // typically to be mounted in the main app (e.g., app.use("/api/users", userRouter))
