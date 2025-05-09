@@ -7,6 +7,7 @@ import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
+import { validateRegistrationInput } from "../validations/user.validate.js";
 
 // Define the registerUser controller function
 // It's wrapped in asyncHandler to ensure any asynchronous errors are caught
@@ -31,29 +32,35 @@ const registerUser = asyncHandler( async ( req, res, next) => {
 
     // Create an object that maps field names to their respective values
     // This helps in iterating over the fields easily for validation
-    const fields = { fullName, username, email, password };
+    // const fields = { fullName, username, email, password };
 
     // Define custom error messages for each field
     // These will be shown if the field is missing or empty
-    const errorMessages = {
-        fullName: `\n \n - fullName is required and should not be empty!`,
-        username: `\n - username is required and should not be empty!`,
-        email: `\n - email is required and should not be empty!`,
-        password: `\n - password is required and should not be empty! \n`
-    };
+    // const errorMessages = {
+    //     fullName: `\n \n - fullName is required and should not be empty!`,
+    //     username: `\n - username is required and should not be empty!`,
+    //     email: `\n - email is required and should not be empty!`,
+    //     password: `\n - password is required and should not be empty! \n`
+    // };
 
     // Validate each field:
     // - Object.entries(fields) converts the fields object into an array of [key, value] pairs
     // - .filter() checks if the value is undefined, null, or an empty string after trimming
     // - .map() transforms the filtered keys into their corresponding error messages
-    const errors = Object.entries(fields)
-        .filter(([key, value]) => value === undefined || value === null || value?.trim() === "")
-        .map(([key]) => errorMessages[key]);
+    // const errors = Object.entries(fields)
+    //     .filter(([key, value]) => value === undefined || value === null || value?.trim() === "")
+    //     .map(([key]) => errorMessages[key]);
 
     // If any validation errors are found, throw an error with status 400 (Bad Request)
     // The error message combines all missing/invalid field messages into one
-    if (errors.length > 0) {
-        throw new ApiError(400, errors.join(`\n`));
+    // if (errors.length > 0) {
+    //     throw new ApiError(400, errors.join(`\n`));
+    // }
+
+    const validationErrors = validateRegistrationInput({ fullName, username, email, password });
+
+    if (validationErrors.length > 0) {
+        throw new ApiError(400, `\n\n${validationErrors.join("\n")}\n\n`);
     }
 
     // Check if a user already exists with the same email or username
