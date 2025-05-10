@@ -459,6 +459,59 @@ const changeUserAvatar = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, user, "Avatar Updated Successfully"));
 });
 
+// Function to change the user's cover image
+const changeUserCoverImage = asyncHandler(async (req, res) => {
+    
+    // Get the local file path of the uploaded cover image from the request
+    const coverImageLocalPath = req.file?.path;
+
+    // If no file was uploaded, throw an error
+    if (!coverImageLocalPath) {
+        throw new ApiError(400, "Cover image file is missing");
+    }
+
+    // Fetch the current coverImage's Cloudinary URL from the database (excluding _id)
+    const coverImageCloudinaryFilePath = (
+        await User.findById(req.user?._id).select("coverImage -_id")
+    ).coverImage;
+
+    // If an existing cover image exists on Cloudinary, attempt to delete it
+    if (coverImageCloudinaryFilePath) {
+        const oldCoverImage = await deletFromCloudinary(coverImageCloudinaryFilePath);
+
+        // If deletion failed, throw an error
+        if (!oldCoverImage) {
+            throw new ApiError(404, "Error while deleting file from Cloudinary");
+        }
+    }
+
+    // Upload the new cover image to Cloudinary
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+
+    // If Cloudinary did not return a URL, throw an error
+    if (!coverImage.url) {
+        throw new ApiError(400, "Error while uploading the cover image to Cloudinary");
+    }
+
+    // Update the user's coverImage URL in the database and return the new user object (excluding password)
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                coverImage: coverImage.url, // Store the new Cloudinary URL in the DB
+            },
+        },
+        {
+            new: true, // Return the updated user document
+        }
+    ).select("-password"); // Exclude password from the result
+
+    // Respond with success and the updated user data
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, "Avatar Updated Successfully"));
+});
+
 // Export the registerUser function so it can be used in route definitions
 export { 
     registerUser, 
@@ -468,5 +521,6 @@ export {
     chnageCurrentPassword, 
     getAccountDetails, 
     changeAccountDetails,
-    changeUserAvatar 
+    changeUserAvatar,
+    changeUserCoverImage 
 };

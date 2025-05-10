@@ -16,7 +16,8 @@ import {
     chnageCurrentPassword, 
     getAccountDetails, 
     changeAccountDetails,
-    changeUserAvatar
+    changeUserAvatar,
+    changeUserCoverImage
 } from "../controllers/user.controller.js";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
 
@@ -50,6 +51,7 @@ userRouter.route("/update-password").post( verifyJwt, chnageCurrentPassword)
 userRouter.route("/get-user-details").get( verifyJwt, getAccountDetails)
 userRouter.route("/update-user-details").post( verifyJwt, changeAccountDetails)
 userRouter.route("/update-avatar-image").post( verifyJwt, upload.single("avatar"), changeUserAvatar)
+userRouter.route("/update-cover-image").post( verifyJwt, upload.single("coverImage"), changeUserCoverImage)
 
 // Exporting the userRouter so it can be used in other parts of the application,
 // typically to be mounted in the main app (e.g., app.use("/api/users", userRouter))
