@@ -14,6 +14,7 @@ import {
     logoutUser, 
     chnageCurrentPassword, 
     refreshAccessToken, 
+    getAccountDetails, 
     changeAccountDetails 
 } from "../controllers/user.controller.js";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
@@ -44,6 +45,7 @@ userRouter.route("/login").post(loginUser);
 
 userRouter.route("/logout").post( verifyJwt, logoutUser)
 userRouter.route("/update-password").post( verifyJwt, chnageCurrentPassword)
+userRouter.route("/get-user-details").get( verifyJwt, getAccountDetails)
 userRouter.route("/update-user-details").post( verifyJwt, changeAccountDetails)
 userRouter.route("/refresh-token").post(refreshAccessToken)
 

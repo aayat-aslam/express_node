@@ -345,6 +345,27 @@ const chnageCurrentPassword = asyncHandler(async (req, res) => {
     );
 })
 
+// Controller to get logged-in user's account details
+const getAccountDetails = asyncHandler(async (req, res) => {
+    // Fetch the user from the database using the ID from the authenticated request
+    // `select("-password")` ensures the password field is excluded from the result for security
+    const user = await User.findById(req.user?._id).select("-password");
+
+    // If no user is found with the given ID, respond with a 404 error
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    // If user exists, return a 200 response with user data and a success message
+    return res.status(200).json(
+        new ApiResponse(
+            200,     // HTTP status code
+            user,    // Data to send in the response (user object without password)
+            "User Details Fetched"  // Message
+        )
+    );
+});
+
 const changeAccountDetails = asyncHandler(async(req, res) => {
     const { fullName, email } = req.body;
 
@@ -368,4 +389,12 @@ const changeAccountDetails = asyncHandler(async(req, res) => {
 })
 
 // Export the registerUser function so it can be used in route definitions
-export { registerUser, loginUser, logoutUser, refreshAccessToken, chnageCurrentPassword, changeAccountDetails };
+export { 
+    registerUser, 
+    loginUser, 
+    logoutUser, 
+    refreshAccessToken, 
+    chnageCurrentPassword, 
+    getAccountDetails, 
+    changeAccountDetails 
+};
