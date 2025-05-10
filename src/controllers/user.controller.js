@@ -252,11 +252,11 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     
     // Get refresh token from either cookies or request body
     // This is useful for flexibility across browser-based and API clients
-    const incommingRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    const incommingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
     // If no refresh token is provided, the request is unauthorized
-    if (!incommingRefreshToken) {
-        throw new ApiError(401, "Unauthorized request");
+    if (!incommingRefreshToken || incommingRefreshToken === undefined || incommingRefreshToken === "undefined") {
+        throw new ApiError(401, "Unauthorized request, refresh token is undefined");
     }
 
     try {
@@ -285,19 +285,19 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         };
 
         // Generate a new access token and a new refresh token
-        const { accessToken, newRefreshToken } = await generateAccessAndRefreshToken(user._id);
+        const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
 
         // Send the new tokens back as HTTP-only cookies and in the response body
         return res
             .status(200)
             .cookie("accessToken", accessToken, options)         // Set new access token in cookie
-            .cookie("refreshToken", newRefreshToken, options)   // Set new refresh token in cookie
+            .cookie("refreshToken", refreshToken, options)   // Set new refresh token in cookie
             .json(
                 new ApiResponse(
                     200,
                     {
                         accessToken,
-                        refreshToken: newRefreshToken
+                        refreshToken
                     },
                     "AccessToken Refreshed"
                 )
