@@ -255,7 +255,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     const incommingRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
     // If no refresh token is provided, the request is unauthorized
-    if (!incommingRefreshToken || incommingRefreshToken === undefined || incommingRefreshToken === "undefined") {
+    if (!incommingRefreshToken || String(incommingRefreshToken).trim() === "undefined") {
         throw new ApiError(401, "Unauthorized request, refresh token is undefined");
     }
 
@@ -308,5 +308,42 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 });
 
+const chnageCurrentPassword = asyncHandler(async (req, res) => {
+    // Extract the current password and new password from the request body
+    const { currentPassword, newPassword } = req.body;
+
+    // Check if the current password is provided
+    if (!currentPassword || currentPassword.trim() === "") {
+        throw new ApiError(400, "Current password is required");
+    }
+    // Check if the new password is provided
+    if (!newPassword || newPassword.trim() === "") {
+        throw new ApiError(400, "New password is required");
+    }
+    // Find the user in the database using the ID from the authenticated request
+    // This ID is typically set in the request object by a previous middleware (like verifyJwt)
+    const user = await User.findById(req.user._id);
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    const isPasswordValid = await user.isPasswordCorrect(currentPassword);
+    if(!isPasswordValid){
+        throw new ApiError(401, "Current password is incorrect");
+    }
+    // Check if the new password is the same as the current password
+    if (currentPassword === newPassword) {
+        throw new ApiError(400, "New password must be different from the current password");
+    }
+    
+    user.password = newPassword; // Update the user's password
+    await user.save({validateBeforeSave: false}); // Save the updated user document without validation
+
+    // Send a success response back to the client
+    return res.status(200).json(
+        new ApiResponse(200, {}, "Password changed successfully")
+    );
+})
+
 // Export the registerUser function so it can be used in route definitions
-export { registerUser, loginUser, logoutUser, refreshAccessToken };
+export { registerUser, loginUser, logoutUser, refreshAccessToken, chnageCurrentPassword };
