@@ -345,5 +345,27 @@ const chnageCurrentPassword = asyncHandler(async (req, res) => {
     );
 })
 
+const changeAccountDetails = asyncHandler(async(req, res) => {
+    const { fullName, email } = req.body;
+
+    if(!fullName || !email){
+        throw new ApiError(400, "All fields are required");
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: { fullName, email }
+        },
+        {
+            new: true
+        }
+    ).select("-password")
+ 
+    return res
+    .status(200)
+    .json( new ApiResponse(200, user, "Account updated successfully"))
+})
+
 // Export the registerUser function so it can be used in route definitions
-export { registerUser, loginUser, logoutUser, refreshAccessToken, chnageCurrentPassword };
+export { registerUser, loginUser, logoutUser, refreshAccessToken, chnageCurrentPassword, changeAccountDetails };
