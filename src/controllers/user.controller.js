@@ -248,7 +248,7 @@ const logoutUser = asyncHandler( async (req, res) => {
 });
 
 // Controller to refresh access token using a valid refresh token
-const refreshAccessToken = asyncHandler(async (req, res) => {
+const refreshAccessToken = asyncHandler( async (req, res) => {
     
     // Get refresh token from either cookies or request body
     // This is useful for flexibility across browser-based and API clients
@@ -308,42 +308,54 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     }
 });
 
-const chnageCurrentPassword = asyncHandler(async (req, res) => {
-    // Extract the current password and new password from the request body
+// Controller to handle password change functionality for a logged-in user
+const chnageCurrentPassword = asyncHandler( async (req, res) => {
+    
+    // Extract current and new passwords from the request body
     const { currentPassword, newPassword } = req.body;
 
-    // Check if the current password is provided
+    // Validate current password presence and non-empty value
     if (!currentPassword || currentPassword.trim() === "") {
         throw new ApiError(400, "Current password is required");
     }
-    // Check if the new password is provided
+
+    // Validate new password presence and non-empty value
     if (!newPassword || newPassword.trim() === "") {
         throw new ApiError(400, "New password is required");
     }
-    // Find the user in the database using the ID from the authenticated request
-    // This ID is typically set in the request object by a previous middleware (like verifyJwt)
+
+    // Find the user based on the authenticated user ID (set in previous auth middleware)
     const user = await User.findById(req.user._id);
+
+    // If user not found, return 404 error
     if (!user) {
         throw new ApiError(404, "User not found");
     }
 
+    // Compare the currentPassword entered by the user with the hashed password in DB
     const isPasswordValid = await user.isPasswordCorrect(currentPassword);
-    if(!isPasswordValid){
+
+    // If current password does not match, throw unauthorized error
+    if (!isPasswordValid) {
         throw new ApiError(401, "Current password is incorrect");
     }
-    // Check if the new password is the same as the current password
+
+    // Prevent setting the same password as the new one
     if (currentPassword === newPassword) {
         throw new ApiError(400, "New password must be different from the current password");
     }
-    
-    user.password = newPassword; // Update the user's password
-    await user.save({validateBeforeSave: false}); // Save the updated user document without validation
 
-    // Send a success response back to the client
+    // Set the new password (this will be hashed automatically if pre-save hook is used)
+    user.password = newPassword;
+
+    // Save the updated user object without running other validations (e.g., email format, etc.)
+    await user.save({ validateBeforeSave: false });
+
+    // Respond to the client with a success message
     return res.status(200).json(
         new ApiResponse(200, {}, "Password changed successfully")
     );
-})
+});
 
 // Controller to get logged-in user's account details
 const getAccountDetails = asyncHandler(async (req, res) => {
@@ -366,27 +378,33 @@ const getAccountDetails = asyncHandler(async (req, res) => {
     );
 });
 
-const changeAccountDetails = asyncHandler(async(req, res) => {
+// Controller to handle account detail updates (full name and email)
+const changeAccountDetails = asyncHandler(async (req, res) => {
+
+    // Destructure updated values from the request body
     const { fullName, email } = req.body;
 
-    if(!fullName || !email){
-        throw new ApiError(400, "All fields are required");
+    // Validate presence of both fields (prevent partial updates)
+    if (!fullName || !email) {
+        throw new ApiError(400, "All fields are required"); // Return 400 Bad Request if any field is missing
     }
 
+    // Update the user's fullName and email in the database
     const user = await User.findByIdAndUpdate(
-        req.user?._id,
+        req.user?._id,                // Use the authenticated user's ID from the request (set via middleware)
         {
-            $set: { fullName, email }
+            $set: { fullName, email } // Set the new values for fullName and email
         },
         {
-            new: true
+            new: true                 // Return the updated document instead of the original
         }
-    ).select("-password")
- 
+    ).select("-password");            // Exclude the password field from the returned user object for security
+
+    // Return a success response with the updated user details
     return res
-    .status(200)
-    .json( new ApiResponse(200, user, "Account updated successfully"))
-})
+        .status(200)  // HTTP OK
+        .json(new ApiResponse(200, user, "Account updated successfully"));
+});
 
 // Export the registerUser function so it can be used in route definitions
 export { 
