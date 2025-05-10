@@ -5,7 +5,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js";
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, deletFromCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { validateRegistrationInput } from "../validations/user.validate.js";
 import jwt from "jsonwebtoken";
@@ -406,6 +406,59 @@ const changeAccountDetails = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, user, "Account updated successfully"));
 });
 
+// Function to change the user's avatar
+const changeUserAvatar = asyncHandler(async (req, res) => {
+    
+    // Get the local file path of the uploaded avatar from the request
+    const avatarImageLocalPath = req.file?.path;
+
+    // If no file was uploaded, throw an error
+    if (!avatarImageLocalPath) {
+        throw new ApiError(400, "Avatar image file is missing");
+    }
+
+    // Fetch the current avatar's Cloudinary URL from the database (excluding _id)
+    const avatarCloudinaryFilePath = (
+        await User.findById(req.user?._id).select("avatar -_id")
+    ).avatar;
+
+    // If an existing avatar exists on Cloudinary, attempt to delete it
+    if (avatarCloudinaryFilePath) {
+        const oldAvatarImage = await deletFromCloudinary(avatarCloudinaryFilePath);
+
+        // If deletion failed, throw an error
+        if (!oldAvatarImage) {
+            throw new ApiError(404, "Error while deleting file from Cloudinary");
+        }
+    }
+
+    // Upload the new avatar image to Cloudinary
+    const avatarImage = await uploadOnCloudinary(avatarImageLocalPath);
+
+    // If Cloudinary did not return a URL, throw an error
+    if (!avatarImage.url) {
+        throw new ApiError(400, "Error while uploading the avatar to Cloudinary");
+    }
+
+    // Update the user's avatar URL in the database and return the new user object (excluding password)
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set: {
+                avatar: avatarImage.url, // Store the new Cloudinary URL in the DB
+            },
+        },
+        {
+            new: true, // Return the updated user document
+        }
+    ).select("-password"); // Exclude password from the result
+
+    // Respond with success and the updated user data
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, "Avatar Updated Successfully"));
+});
+
 // Export the registerUser function so it can be used in route definitions
 export { 
     registerUser, 
@@ -414,5 +467,6 @@ export {
     refreshAccessToken, 
     chnageCurrentPassword, 
     getAccountDetails, 
-    changeAccountDetails 
+    changeAccountDetails,
+    changeUserAvatar 
 };

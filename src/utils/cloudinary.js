@@ -3,6 +3,7 @@ import { v2 as cloudinary } from 'cloudinary';
 
 // Import 'fs' module to interact with the file system (e.g., delete temp files)
 import fs from "fs";
+import { ApiError } from './ApiError.js';
 
 // Configure Cloudinary with credentials from environment variables (.env file)
 // These credentials are necessary for authenticating API requests to Cloudinary
@@ -57,5 +58,35 @@ const uploadOnCloudinary = async (localFilePath) => {
     }
 }
 
+// Function to delete a file from Cloudinary using its file URL
+const deletFromCloudinary = async (cloudinaryFilePath) => {
+    try {
+        // Return null early if the input path is not provided
+        if (!cloudinaryFilePath) return null;
+
+        // Define a regex pattern to extract the public_id from the Cloudinary URL
+        // This pattern handles optional versioning (e.g., /v123456789/) and various file extensions
+        const regex = /\/upload\/(?:v\d+\/)?(.+?)\.(jpg|jpeg|png|webp|gif|svg)$/i;
+
+        // Apply the regex to the provided Cloudinary file path
+        const publicId = cloudinaryFilePath.match(regex);
+        
+        // If the public_id is not found or malformed, throw an error
+        if (!(publicId && publicId[1])) {
+            throw new ApiError(404, "Invalid Cloudinary File Path", publicId)
+        }
+
+        // Use Cloudinary's uploader.destroy method to delete the file using the extracted public_id
+        const result = await cloudinary.uploader.destroy(publicId[1]);
+
+        // Return the result from Cloudinary (e.g., { result: 'ok' })
+        return result;
+
+    } catch (error) {
+        // Catch and throw a new ApiError with a custom message if deletion fails
+        throw new ApiError(404, error?.message || "Failed to delete file from cloudinary");
+    }
+};
+
 // Export the function so it can be used in other parts of the application
-export { uploadOnCloudinary };
+export { uploadOnCloudinary, deletFromCloudinary };
