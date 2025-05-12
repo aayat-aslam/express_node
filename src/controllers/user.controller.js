@@ -512,6 +512,88 @@ const changeUserCoverImage = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, user, "Avatar Updated Successfully"));
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    // Extract username from request parameters
+    const { username } = req.params;
+
+    // Validate the username input
+    if (!username?.trim()) {
+        throw new ApiError(400, "username is missing");
+    }
+
+    // Perform an aggregation query to fetch user channel profile and related data
+    const channel = await User.aggregate(
+        [
+            {
+                // Match user document with the provided username (case-insensitive)
+                $match: {
+                    username: username?.toLowerCase()
+                }
+            },
+            {
+                // Lookup to fetch users who have subscribed to this channel (current user)
+                $lookup: {
+                    from: "subscriptions",          // Collection name to join from
+                    localField: "_id",              // Field from User collection
+                    foreignField: "channel",        // Field from Subscription collection
+                    as: "subscribers"               // Output array field name
+                }
+            },
+            {
+                // Lookup to fetch channels this user is subscribed to
+                $lookup: {
+                    from: "subscriptions",
+                    localField: "_id",
+                    foreignField: "subscriber",
+                    as: "subscribedTo"
+                }
+            },
+            {
+                // Add computed fields: subscribers count, subscriptions count, and isSubscribed flag
+                $addFields: {
+                    subscribersCount: {
+                        $size: "$subscribers"       // Count number of subscribers
+                    },
+                    channelSubscribedToCount: {
+                        $size: "$subscribedTo"      // Count number of channels the user has subscribed to
+                    },
+                    isSubscribed: {
+                        // Check if the logged-in user is one of the subscribers
+                        $cond: {
+                            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+                            then: true,
+                            else: false
+                        }
+                    }
+                }
+            },
+            {
+                // Select only necessary fields to return in the response
+                $project: {
+                    username: 1,
+                    email: 1,
+                    fullName: 1,
+                    avatar: 1,
+                    coverImage: 1,
+                    subscribersCount: 1,
+                    channelSubscribedToCount: 1,
+                    isSubscribed: 1
+                }
+            }
+        ]
+    );
+
+    // If no channel/user found, throw error
+    if (!channel?.length) {
+        throw new ApiError(400, "Channel does not exists");
+    }
+
+    // Send back user channel info in response
+    return res
+        .status(200)
+        .json(new ApiResponse(200, channel[0], "User channel fetched successfully."));
+});
+
 // Export the registerUser function so it can be used in route definitions
 export { 
     registerUser, 
@@ -522,5 +604,6 @@ export {
     getAccountDetails, 
     changeAccountDetails,
     changeUserAvatar,
-    changeUserCoverImage 
+    changeUserCoverImage,
+    getUserChannelProfile
 };
