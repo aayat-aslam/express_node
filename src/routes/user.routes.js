@@ -17,7 +17,9 @@ import {
     getAccountDetails, 
     changeAccountDetails,
     changeUserAvatar,
-    changeUserCoverImage
+    changeUserCoverImage,
+    getUserChannelProfile,
+    getWatchHistory
 } from "../controllers/user.controller.js";
 import { verifyJwt } from "../middlewares/auth.middleware.js";
 
@@ -47,11 +49,13 @@ userRouter.route("/login").post(loginUser);
 
 userRouter.route("/logout").post( verifyJwt, logoutUser)
 userRouter.route("/refresh-token").post(refreshAccessToken)
-userRouter.route("/update-password").post( verifyJwt, chnageCurrentPassword)
-userRouter.route("/get-user-details").get( verifyJwt, getAccountDetails)
-userRouter.route("/update-user-details").post( verifyJwt, changeAccountDetails)
+userRouter.route("/change-password").post( verifyJwt, chnageCurrentPassword)
+userRouter.route("/current-user").get( verifyJwt, getAccountDetails)
+userRouter.route("/update-account").post( verifyJwt, changeAccountDetails)
 userRouter.route("/update-avatar-image").post( verifyJwt, upload.single("avatar"), changeUserAvatar)
-userRouter.route("/update-cover-image").post( verifyJwt, upload.single("coverImage"), changeUserCoverImage)
+userRouter.route("/update-cover-image").patch( verifyJwt, upload.single("coverImage"), changeUserCoverImage)
+userRouter.route("/channel/:username").get(verifyJwt, getUserChannelProfile)
+userRouter.route("/history").get(verifyJwt, getWatchHistory)
 
 // Exporting the userRouter so it can be used in other parts of the application,
 // typically to be mounted in the main app (e.g., app.use("/api/users", userRouter))
