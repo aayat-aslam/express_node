@@ -1,29 +1,29 @@
-// Importing Mongoose and Schema constructor for defining the schema
+// Importing Mongoose library and Schema constructor from it
 import mongoose, { Schema } from "mongoose";
 
-// Import the User model to reference it in the schema
-import { User } from "./user.model";
-
-// Define the schema for a subscription relationship between users
+// Define a Mongoose schema for managing subscriptions between users
 const subscriptionSchema = new Schema(
     {
-        // 'subscriber' is the user who subscribes to a channel (another user)
+        // 'subscriber' represents the user who is subscribing to another user's channel
         subscriber: {
-            type: Schema.Types.ObjectId, // Stores MongoDB ObjectId
-            ref: User                   // Refers to the 'User' model
+            type: Schema.Types.ObjectId, // Reference to the subscribing user's ObjectId
+            ref: "User",                 // Refers to the 'User' model (for population purposes)
+            required: true              // Ensures that a subscriber is always specified
         },
 
-        // 'channel' is the user who is being subscribed to
+        // 'channel' represents the user (channel owner) being subscribed to
         channel: {
-            type: Schema.Types.ObjectId, // Stores MongoDB ObjectId
-            ref: User                   // Refers to the 'User' model
+            type: Schema.Types.ObjectId, // Reference to the channel user's ObjectId
+            ref: "User",                 // Refers to the 'User' model (for population purposes)
+            required: true              // Ensures that a channel is always specified
         }
     },
     {
-        // Automatically adds 'createdAt' and 'updatedAt' fields to track changes
+        // Mongoose will automatically add `createdAt` and `updatedAt` fields to each document
         timestamps: true
     }
 );
 
-// Create and export the Mongoose model named 'Subscription' using the schema
+// Create the Mongoose model named 'Subscription' using the defined schema
+// This model represents the subscription relationships in the database
 export const Subscription = mongoose.model("Subscription", subscriptionSchema);
