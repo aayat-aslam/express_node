@@ -5,6 +5,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 
 import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js";
+import { Subscription } from "../models/subscription.model.js";
 import { uploadOnCloudinary, deletFromCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { validateRegistrationInput } from "../validations/user.validate.js";
@@ -655,6 +656,46 @@ const getWatchHistory = asyncHandler(async (req, res) => {
     )
 })
 
+const subscribeChannel = asyncHandler(async (req, res) => {
+    const subscriberId = req.user._id; // Authenticated user making the request
+    const { channelId } = req.body;    // ID of the user being subscribed to
+
+    // Validate input
+    if (!channelId) {
+        throw new ApiError(400, "Channel ID is required.");
+    }
+
+    if (subscriberId.toString() === channelId) {
+        throw new ApiError(400, "You cannot subscribe to your own channel.");
+    }
+
+    // Check if the channel exists
+    const channelUser = await User.findById(channelId);
+    if (!channelUser) {
+        throw new ApiError(400, "Channel not found.");
+    }
+
+    // Check for an existing subscription
+    const alreadySubscribed = await Subscription.findOne({
+        subscriber: subscriberId,
+        channel: channelId
+    });
+
+    if (alreadySubscribed) {
+        throw new ApiError(400, "Already subscribed to this channel.");
+    }
+
+    // Create and save the new subscription
+    const newSubscription = await Subscription.create({
+        subscriber: subscriberId,
+        channel: channelId
+    });
+
+    return res
+    .status(201)
+    .json(new ApiResponse(200, newSubscription, "Channel subscribed successfully."));
+});
+
 // Export the registerUser function so it can be used in route definitions
 export { 
     registerUser, 
@@ -667,5 +708,6 @@ export {
     changeUserAvatar,
     changeUserCoverImage,
     getUserChannelProfile,
-    getWatchHistory
+    getWatchHistory,
+    subscribeChannel
 };

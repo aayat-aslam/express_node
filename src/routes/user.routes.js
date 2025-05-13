@@ -19,9 +19,10 @@ import {
     changeUserAvatar,
     changeUserCoverImage,
     getUserChannelProfile,
-    getWatchHistory
+    getWatchHistory,
+    subscribeChannel
 } from "../controllers/user.controller.js";
-import { verifyJwt } from "../middlewares/auth.middleware.js";
+import { verifyJwt, getUserIfAuthenticated } from "../middlewares/auth.middleware.js";
 
 // Creating a new router instance for handling user-related routes
 const userRouter = Router();
@@ -54,8 +55,9 @@ userRouter.route("/current-user").get( verifyJwt, getAccountDetails)
 userRouter.route("/update-account").post( verifyJwt, changeAccountDetails)
 userRouter.route("/update-avatar-image").post( verifyJwt, upload.single("avatar"), changeUserAvatar)
 userRouter.route("/update-cover-image").patch( verifyJwt, upload.single("coverImage"), changeUserCoverImage)
-userRouter.route("/channel/:username").get(verifyJwt, getUserChannelProfile)
+userRouter.route("/channel/:username").get(getUserIfAuthenticated, getUserChannelProfile)
 userRouter.route("/history").get(verifyJwt, getWatchHistory)
+userRouter.route("/subscribe-channel").post(verifyJwt, subscribeChannel)
 
 // Exporting the userRouter so it can be used in other parts of the application,
 // typically to be mounted in the main app (e.g., app.use("/api/users", userRouter))

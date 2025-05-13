@@ -44,3 +44,32 @@ export const verifyJwt = asyncHandler(async (req, res, next) => {
         throw new ApiError(401, error?.message || "Invalid Access Token");
     }
 });
+
+// Middleware to attach user to request if authenticated via JWT
+export const getUserIfAuthenticated = asyncHandler(async (req, res, next) => {
+    // Extract token from cookies or Authorization header
+    const token =
+        req.cookies?.accessToken ||
+        req.header("Authorization")?.replace("Bearer ", "");
+
+    // If no token is found, continue without setting req.user
+    if (!token) return next();
+
+    try {
+        // Verify token and extract payload
+        const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+
+        // Find user and exclude sensitive fields
+        const user = await User.findById(decoded._id).select("-password -refreshToken");
+
+        // If user is found, attach to request
+        if (user) {
+            req.user = user;
+        }
+
+        return next(); // Always proceed to next middleware
+    } catch (error) {
+        // Token is invalid or verification failed
+        throw new ApiError(401, error?.message || "Invalid Access Token");
+    }
+});
