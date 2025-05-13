@@ -9,6 +9,8 @@ import { uploadOnCloudinary, deletFromCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { validateRegistrationInput } from "../validations/user.validate.js";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import { json } from "express";
 
 // Function to generate a new access token and refresh token for a user
 const generateAccessAndRefreshToken = async (userId) => {
@@ -594,6 +596,65 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, channel[0], "User channel fetched successfully."));
 });
 
+const getWatchHistory = asyncHandler(async (req, res) => {
+
+    // Perform an aggregation query on the User collection to fetch detailed watch history
+    const user = await User.aggregate([
+        {
+            // Match the user document using the ID from the authenticated request (req.user._id)
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id)
+            }
+        },
+        {
+            // Perform a lookup to join the User's 'watchHistory' array with the 'videos' collection
+            $lookup: {
+                from: "videos",                        // Collection to join with (videos)
+                localField: "watchHistory",            // Field in the User document (array of video IDs)
+                foreignField: "_id",                   // Matching field in the Video document (_id)
+                as: "watchHistory",                    // Output array field to store matched video documents
+                
+                // Use a nested pipeline to further enrich the video data with owner info
+                pipeline: [
+                    {
+                        // Lookup the 'owner' of each video from the 'users' collection
+                        $lookup: {
+                            from: "users",             // Collection to join with (users)
+                            localField: "owner",       // Field in the Video document (owner ID)
+                            foreignField: "_id",       // Matching field in the User document
+                            as: "owner",               // Output array field to store matched owner info
+                            pipeline: [
+                                {
+                                    // Project only selected fields from the owner
+                                    $project: {
+                                        fullName: 1,   // Include full name
+                                        username: 1,   // Include username
+                                        avatar: 1      // Include avatar URL
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        // Flatten the owner array to a single object using $first
+                        $addFields: {
+                            owner: {
+                                $first: "$owner"       // Extract first (and expected only) owner document
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ]);
+
+    return res
+    .status(200),
+    json(
+        new ApiResponse(200, user[0].watchHistory, "Watch history fetched successfully.")
+    )
+})
+
 // Export the registerUser function so it can be used in route definitions
 export { 
     registerUser, 
@@ -605,5 +666,6 @@ export {
     changeAccountDetails,
     changeUserAvatar,
     changeUserCoverImage,
-    getUserChannelProfile
+    getUserChannelProfile,
+    getWatchHistory
 };
